@@ -13,10 +13,6 @@ phpmailer.php
 md5 -> hash -> time + user
 localhost/login/validar?hash
 
-TIEMPO 30 SEG POR PREGUNTA, LOGICA EN FRONT Y BACK -> 
-SUMO LOS PUNTOS 
-MANTENER PAGINA CON TIEMPO, PREGUNTA Y RESPUESTA
-
 MAPA DE GOOGLE
 	-> 2 inputs latitud y longitud
 
