@@ -9,7 +9,6 @@
 
 Para verificar QUE TIPO DE USUARIO puede ejecutar TAL controlador, se ejecuta en el ROUTER
 
-phpmailer.php
 md5 -> hash -> time + user
 localhost/login/validar?hash
 
