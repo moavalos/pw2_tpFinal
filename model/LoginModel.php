@@ -2,11 +2,13 @@
 
 class LoginModel extends BaseModel
 {
-    public function __construct($database){
+    public function __construct($database)
+    {
         parent:: __construct($database);
     }
 
-    public function procesarInicioSesion($email, $password){
+    public function procesarInicioSesion($email, $password)
+    {
 
         $seInicioSesion = false;
         $resultado = $this->database->conn->prepare("SELECT * FROM Usuarios WHERE email = ?");
@@ -15,17 +17,16 @@ class LoginModel extends BaseModel
         $resultado->execute();
         $resultado = $resultado->get_result();
 
-        if ($resultado -> num_rows == 1) {
-            $fila = $resultado -> fetch_assoc();
+        if ($resultado->num_rows == 1) {
+            $fila = $resultado->fetch_assoc();
 
-            if ($password == $fila["password"]  ) {
-                $seInicioSesion =  true;
+            if ($password == $fila["password"]) {
+                $seInicioSesion = true;
             }
 
-        }elseif ($resultado -> num_rows == 0){
+        } elseif ($resultado->num_rows == 0) {
             die("No se encuentra el mail ingresado en la base de datos");
-        }
-        else {
+        } else {
             die("Hay mails repetidos en la base de datos");
         }
 
@@ -49,15 +50,15 @@ class LoginModel extends BaseModel
 
         if ($resultado->num_rows > 0)
             return $resultado->fetch_assoc();
-            // verifico si el numero de filas en el resultado es mayor que 0 y devuelvo la fila
+        // verifico si el numero de filas en el resultado es mayor que 0 y devuelvo la fila
 
         return false;
     }
 
-    public function obtenerUsuarioConNombrePaisPorId($idUsuario) {
-        $consulta = "SELECT u.*, p.nombre AS nombre_pais 
+    public function obtenerUsuarioConNombre($idUsuario)
+    {
+        $consulta = "SELECT u.* 
                      FROM Usuarios u 
-                     INNER JOIN Pais p ON u.id_pais = p.id 
                      WHERE u.id = ?";
         $stmt = $this->database->prepare($consulta);
         $stmt->bind_param("i", $idUsuario);
@@ -86,5 +87,22 @@ class LoginModel extends BaseModel
         $stmt->execute();
         return $stmt->get_result()->fetch_assoc();
     }
+
+    public function actualizarQRUsuario($username, $qrPath)
+    {
+        $query = "UPDATE Usuarios SET qr = ? WHERE username = ?";
+        $stmt = $this->database->prepare($query);
+
+        if ($stmt === false)
+            throw new Exception("error u.u: " . $this->database->error);
+
+        $stmt->bind_param("ss", $qrPath, $username);
+
+        if (!$stmt->execute())
+            throw new Exception("errorx2: " . $stmt->error);
+
+        return true;
+    }
+
 
 }

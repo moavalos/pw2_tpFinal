@@ -1,4 +1,5 @@
 <?php
+
 class PerfilController extends BaseController
 {
     public function __construct($model, $presenter)
@@ -12,7 +13,7 @@ class PerfilController extends BaseController
         $this->checkSession();
 
         $userId = $_SESSION["username"];
-        $usuario = $this->model->obtenerUsuarioConNombrePaisPorId($userId['id']);
+        $usuario = $this->model->obtenerUsuarioConNombre($userId['id']);
         $rol = $this->verificarDeQueRolEsElUsuario($userId['id']);
 
         $this->presenter->render("view/perfilUsuario.mustache", ["usuario" => $usuario, "rol" => $rol['rol']]);
@@ -22,8 +23,9 @@ class PerfilController extends BaseController
     {
         $this->checkSession();
 
-        if (!isset($_GET['username']))
+        if (!isset($_GET['username'])) {
             die('Usuario no especificado.');
+        }
 
         $username = $_GET['username'];
         $usuario = $this->model->obtenerUsuarioPorUsername($username);
@@ -34,19 +36,19 @@ class PerfilController extends BaseController
         $anioNacimiento = $usuario['anio_nacimiento'];
         $anioActual = date("Y");
         $edad = $anioActual - $anioNacimiento;
-        // calculo la edad del usuario para mostrarla
         $usuario['edad'] = $edad;
 
-        include('third-party/phpqrcode/qrlib.php');
-        $contenido = 'https://NOSE/usuario/' . $usuario['username'];
-        $nombreArchivo = 'qrs/' . $usuario['username'] . '.png';
+        $urlPerfil = 'http://localhost/perfiles?username=' . $username;
+        $qrPath = 'public/qrs/' . $username . '.png';
 
-        if (!file_exists('qrs'))
-            mkdir('qrs', 0777, true);
+        // genero el QR si no existe o si la URL cambio
+        if (empty($usuario['qr']) || $usuario['qr'] !== $qrPath) {
+            QRcode::png($urlPerfil, $qrPath);
 
-        QRcode::png($contenido, $nombreArchivo, QR_ECLEVEL_L, 10);
-
-        $usuario['qr'] = $nombreArchivo;
+            // actualizo la ruta del QR en la bdd
+            $this->model->actualizarQRUsuario($username, $qrPath);
+            $usuario['qr'] = $qrPath;
+        }
 
         $this->presenter->render("view/perfiles.mustache", ['usuario' => $usuario]);
     }

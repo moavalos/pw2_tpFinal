@@ -9,7 +9,7 @@ class RegistroModel
         $this->database = $database;
     }
 
-    public function registrarUsuarioAlaBD($nombre, $anio_nacimiento, $sexo, $pais, $ciudad, $email, $password, $username, $foto)
+    public function registrarUsuarioAlaBD($nombre, $anio_nacimiento, $sexo, $ciudad, $pais, $email, $password, $username, $foto, $latitud, $longitud)
     {
         $token = bin2hex(random_bytes(8)); // Generar un token aleatorio
         $habilitado = 0;
@@ -19,13 +19,13 @@ class RegistroModel
         $qr = NULL;
 
         $consulta = "
-        INSERT INTO Usuarios (nombre_completo, anio_nacimiento, sexo, id_pais, ciudad, email, password, username, token, foto, habilitado, puntaje_acumulado, partidas_realizadas, nivel, qr)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO Usuarios (nombre_completo, anio_nacimiento, sexo, ciudad, pais, email, password, username, token, foto, habilitado, puntaje_acumulado, partidas_realizadas, nivel, latitud, longitud, qr)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ";
 
         $stmt = $this->database->prepare($consulta);
-        $stmt->bind_param("sissssssssiidis", $nombre, $anio_nacimiento, $sexo, $pais, $ciudad, $email, $password, $username, $token, $foto, $habilitado, $puntaje_acumulado, $partidas_realizadas, $nivel, $qr);
-
+        //$stmt->bind_param("sissssssssiididds", $nombre, $anio_nacimiento, $sexo, $ciudad, $pais, $email, $password, $username, $token, $foto, $habilitado, $puntaje_acumulado, $partidas_realizadas, $nivel, $latitud, $longitud, $qr);
+        $stmt->bind_param("sissssssssiididds", $nombre, $anio_nacimiento, $sexo, $ciudad, $pais, $email, $password, $username, $token, $foto, $habilitado, $puntaje_acumulado, $partidas_realizadas, $nivel, $latitud, $longitud, $qr);
         if ($stmt->execute()) {
             // Obtener el ID del usuario recién insertado
             $idUsuario = $stmt->insert_id;
@@ -60,18 +60,20 @@ class RegistroModel
         return $direccionDestino;
     }
 
-    private function subirFotoAUnaDireccion($direccionOrigen,$direccionDestino) : bool
+    private function subirFotoAUnaDireccion($direccionOrigen, $direccionDestino): bool
     {
         return move_uploaded_file($direccionOrigen, $direccionDestino);
     }
 
-    public function enviarCorreoValidacion($email, $token){
-        $mensaje = 'Por favor, haz clic en el siguiente enlace para validar tu cuenta:' . $email .'<br>';
+    public function enviarCorreoValidacion($email, $token)
+    {
+        $mensaje = 'Por favor, haz clic en el siguiente enlace para validar tu cuenta:' . $email . '<br>';
         $mensaje .= '<a href="/registro/validar?token=' . $token . '">Validar Cuenta</a>';
         return $mensaje;
     }
 
-    public function habilitarCuentaConToken($token){
+    public function habilitarCuentaConToken($token)
+    {
 
         $sql = "SELECT * FROM Usuarios WHERE token='$token' AND habilitado=0";
         $result = $this->database->query($sql);
@@ -79,18 +81,13 @@ class RegistroModel
         if (count($result) == 1) {
             $updateSql = "UPDATE Usuarios SET habilitado=1 WHERE token='$token'";
             if ($this->database->executeAndReturn($updateSql))
-                $mensaje =  "Cuenta validada correctamente.";
+                $mensaje = "Cuenta validada correctamente.";
             else
                 $mensaje = "Error al validar la cuenta.";
         } else {
-            $mensaje =  "Token no válido o cuenta ya validada.";
+            $mensaje = "Token no válido o cuenta ya validada.";
         }
 
         return $mensaje;
-    }
-
-    public function obtenerPaises(){
-        $paises = $this->database->query("SELECT * FROM Pais");
-        return $paises;
     }
 }

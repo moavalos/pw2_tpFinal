@@ -1,18 +1,13 @@
 CREATE DATABASE IF NOT EXISTS preguntados;
 USE preguntados;
 
-CREATE TABLE Pais (
-                      id INT AUTO_INCREMENT PRIMARY KEY,
-                      nombre VARCHAR(100) NOT NULL
-);
-
 CREATE TABLE Usuarios (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     nombre_completo VARCHAR(100) NOT NULL,
                     anio_nacimiento YEAR NOT NULL,
                     sexo CHAR(1) NOT NULL,
-                    id_pais INT,
                     ciudad VARCHAR(100),
+                    pais VARCHAR(100),
                     email VARCHAR(100) NOT NULL UNIQUE,
                     password VARCHAR(100) NOT NULL,
                     username VARCHAR(50) NOT NULL UNIQUE,
@@ -24,8 +19,10 @@ CREATE TABLE Usuarios (
                     nivel VARCHAR(10) DEFAULT 'BAJO',
                     preguntas_acertadas INT DEFAULT 0,
                     preguntas_entregadas INT DEFAULT 0,
-                    qr VARCHAR(255),
-                    FOREIGN KEY (id_pais) REFERENCES Pais(id)
+                    latitud FLOAT,
+                    longitud FLOAT,
+                    fecha_registro DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    qr VARCHAR(255)
 );
 
 CREATE TABLE Partida (
@@ -61,11 +58,14 @@ CREATE TABLE Pregunta (
                           id_categoria INT,
                           nivel VARCHAR(50),
                           usuario_creador INT DEFAULT NULL,  -- si no lo creo un usuario es null
+                          fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
                           revisada BOOLEAN DEFAULT FALSE,
                           valida BOOLEAN DEFAULT TRUE,
                           vecesEntregadas INT,
                           vecesCorrectas INT,
                           activa BOOLEAN DEFAULT FALSE,
+                        fecha_comienzoActivo DATETIME DEFAULT NULL,
+                        fehca_finActivo DATETIME DEFAULT NULL,
                           FOREIGN KEY (id_categoria) REFERENCES Categoria(id),
                           FOREIGN KEY (usuario_creador) REFERENCES Usuarios(id)
 );
@@ -101,15 +101,41 @@ CREATE TABLE PreguntaVistas (
 -- Datos iniciales
 INSERT INTO Rol (id,nombre) VALUES (1,'Administrador'),(2,'Editor'), (3,'Jugador');
 
-INSERT INTO Pais(nombre) VALUES ('Argentina'), ('Uruguay'), ('Chile'), ('Paraguay'), ('Brasil'), ('Bolivia'), ('Peru'), ('Ecuador'), ('Colombia'), ('Venezuela'), ('Guyana'), ('Surinam'), ('Guyana Francesa');
-
-INSERT INTO Usuarios(id,nombre_completo, anio_nacimiento, sexo, id_pais, ciudad, email, password, username, token, foto, habilitado, puntaje_acumulado, partidas_realizadas, nivel, qr)
+INSERT INTO Usuarios(id,nombre_completo, anio_nacimiento, sexo, ciudad, pais, email, password, username, token, foto, habilitado, puntaje_acumulado, partidas_realizadas, nivel,preguntas_acertadas,preguntas_entregadas, qr,fecha_registro)
 VALUES
-    (1,'ignacio', 1990, 'M', 1, 'CABA', 'ignacio@gmail.com', '123456', 'ignacio', '123456', 'foto.jpg', TRUE, 0, 0, 'BAJO', NULL),
-    (2,'Editor', 1990, 'M', 1, 'CABA', 'editor@gmail.com', '123', 'usurioeditor', '12fdgdf', 'foto.jpg', TRUE, 0, 0, 'BAJO', NULL),
-    (3,'Admin', 1990, 'M', 1, 'CABA', 'admin@gmail.com', '123', 'usurioadmin', '1234dfgdf56', 'foto.jpg', TRUE, 0, 0, 'BAJO', NULL);
+    (1,'ignacio', 1990, 'M', 'CABA', 'Argentina', 'ignacio@gmail.com', '123456', 'ignacio', '123456', 'foto.jpg', TRUE, 0, 0, 'BAJO',1,3, NULL,'2024-06-18 15:30:00'),
+    (2,'Editor', 1990, 'M', 'CABA', 'Argentina', 'editor@gmail.com', '123', 'usurioeditor', '12fdgdf', 'foto.jpg', TRUE, 0, 0, 'BAJO',1,3, NULL,'2024-06-20 15:30:00'),
+    (3,'Admin', 1990, 'M', 'CABA', 'Argentina', 'admin@gmail.com', '123', 'usurioadmin', '1234dfgdf56', 'foto.jpg', TRUE, 0, 0, 'MEDIO',2,3, NULL,'2024-06-20 15:30:00'),
+    (4,'Mora', 2002, 'F', 'Paris', 'Francia', 'moavalos@gmail.com', '123', 'momo', '1234dfgtdf56', 'foto.jpg', TRUE, 0, 0, 'ALTO',3,4, NULL,'2022-06-14 11:20:00'),
+    (5, 'Maria Garcia', 1995, 'F', 'Madrid', 'España', 'maria@gmail.com', 'password123', 'maria_garcia', 'token1223', 'foto_maria.jpg', TRUE, 400, 5, 'ALTO',4,5, NULL, '2024-06-21 10:45:00'),
+    (6, 'John Smith', 1988, 'M', 'New York', 'Estados Unidos', 'john.smith@gmail.com', 'qwerty456', 'john_smith', 'token456', 'john_photo.jpg', TRUE, 2, 100, 'ALTO',8,10, NULL, '2024-06-20 08:15:00'),
+    (7, 'Sophie Dupont', 1993, 'F', 'Paris', 'Francia', 'sophie.dupont@gmail.com', 'pass123', 'sophie_dupont', 'token7889', 'sophie_pic.jpg', TRUE, 1, 5, 'ALTO', 9,10,NULL, '2024-06-19 14:20:00'),
+    (8, 'Anna Müller', 1992, 'F', 'Berlín', 'Alemania', 'anna.mueller@gmail.com', 'abc123', 'anna_mueller', 'token789', 'anna_photo.jpg', TRUE, 3, 20, 'MEDIO',5,10, NULL, '2024-06-22 11:00:00'),
+    (9, 'Luca Rossi', 1985, 'M', 'Roma', 'Italia', 'luca.rossi@gmail.com', 'pass456', 'luca_rossi', 'token1011', 'luca_pic.jpg', TRUE, 1, 5, 'MEDIO',6,10, NULL, '2024-06-21 09:30:00'),
+    (10, 'Chen Wei', 1990, 'M', 'Beijing', 'China', 'chen.wei@gmail.com', 'hello123', 'chen_wei', 'token1213', 'chen_pic.jpg', TRUE, 4, 50, 'MEDIO',6,10, NULL, '2024-06-20 13:45:00'),
+    (11, 'Javier Martínez', 1987, 'M', 'Madrid', 'España', 'javier.martinez@gmail.com', 'clave123', 'javier_martinez', 'token14185', 'javier_foto.jpg', TRUE, 7, 4, 'MEDIO',6,10, NULL, '2024-06-19 16:00:00'),
+    (12, 'Emily Johnson', 1994, 'F', 'London', 'Reino Unido', 'emily.johnson@gmail.com', 'password789', 'emily_johnson', 'token1617', 'emily_pic.jpg', TRUE, 6, 3, 'MEDIO',5,10, NULL, '2024-06-18 17:30:00'),
+    (13, 'Ahmed Hassan', 1980, 'M', 'Cairo', 'Egipto', 'ahmed.hassan@gmail.com', 'egypt123', 'ahmed_hassan', 'toke3n1819', 'ahmed_photo.jpg', TRUE, 3, 2, 'BAJO',2,10, NULL, '2024-06-17 12:15:00');
 
-INSERT INTO Usuario_Rol (id_usuario,id_rol) VALUES (1,3), (2,2), (3,1);
+INSERT INTO Partida(id_usuario, puntaje, fecha)
+VALUES
+    (1, 0, '2024-06-22 14:00:00'),
+    (2, 150, '2024-06-22 13:30:00'),
+    (3, 200, '2024-06-22 12:45:00'),
+    (4, 50, '2024-06-21 18:00:00'),
+    (5, 300, '2024-06-21 17:30:00'),
+    (6, 80, '2024-06-21 16:45:00'),
+    (7, 150, '2024-06-21 16:00:00'),
+    (8, 400, '2024-06-21 15:15:00'),
+    (9, 250, '2024-06-21 14:30:00'),
+    (10, 150, '2024-06-21 13:45:00'),
+    (11, 500, '2024-06-21 13:00:00'),
+    (12, 350, '2024-06-20 12:15:00'),
+    (13, 230, '2024-06-20 11:30:00');
+
+INSERT INTO Usuario_Rol (id_usuario,id_rol)
+VALUES (1,3), (2,2), (3,1),(4,3), (5,3), (6,3),(7,3),
+        (8,3), (9,3),(10,3), (11,3), (12,3),(13,3);
 
 INSERT INTO Categoria(id,nombre,color) VALUES
                                            (1,'Espectaculo','#b39606'),
@@ -123,23 +149,39 @@ INSERT INTO Categoria(id,nombre,color) VALUES
                                            (9, 'Cine', '#e0a24b'),
                                            (10, 'Música', '#4b61e0');
 
-INSERT INTO Pregunta(id,texto, id_categoria,nivel,usuario_creador,revisada,valida, vecesEntregadas, vecesCorrectas, activa) VALUES
-(1, '¿Cuál es el nombre del actor que interpreta a Tony Stark/Iron Man en el Universo Cinematográfico de Marvel?', 1, 'MEDIO', NULL, FALSE, TRUE, 10, 5, TRUE),
-(2, '¿Quién es la protagonista de la película "Mujer Maravilla" (2017), basada en el personaje de DC Comics?', 1, 'FACIL', NULL, FALSE, TRUE, 10, 8, TRUE),
-(3, '¿Quién pintó la obra "La Gioconda", también conocida como "La Mona Lisa"?', 3, 'DIFICIL', NULL, FALSE, TRUE, 10, 2, TRUE),
-(4, '¿Cuál de las siguientes partículas subatómicas tiene carga positiva?', 4, 'DIFICIL', NULL, FALSE, TRUE, 10, 3, TRUE),
-(5, '¿En qué año se fundó la empresa Apple?', 5, 'DIFICIL', NULL, FALSE, TRUE, 10, 2, TRUE),
-(6, '¿Cuál es el instrumento musical principal en una orquesta sinfónica?', 10, 'DIFICIL', NULL, FALSE, TRUE, 10, 1, TRUE),
-(7, '¿Cuál es la capital de Uruguay?', 7, 'FACIL', NULL, FALSE, TRUE, 10, 8, TRUE),
-(8, '¿Cuántos lados tiene un triangulo?', 4, 'FACIL', NULL, FALSE, TRUE, 10, 8, TRUE),
-(9, '¿Quién escribió "Cien años de soledad"?', 8, 'FACIL', NULL, FALSE, TRUE, 10, 7, TRUE),
-(10, '¿Cuál es el país más grande del mundo en términos de superficie?', 7, 'FACIL', NULL, FALSE, TRUE, 10, 9, TRUE),
-(11, '¿Qué elemento químico tiene el símbolo "O"?', 4, 'FACIL', NULL, FALSE, TRUE, 10, 8, TRUE),
-(12, '¿En qué año terminó la Segunda Guerra Mundial?', 6, 'MEDIO', NULL, FALSE, TRUE, 10, 6, TRUE),
-(13, '¿Cuál es el idioma más hablado en el mundo?', 7, 'FACIL', NULL, FALSE, TRUE, 10, 8, TRUE),
-(14, '¿Quién es el autor de la teoría de la relatividad?', 4, 'FACIL', NULL, FALSE, TRUE, 10, 8, TRUE),
-(15, '¿Cuál es la moneda oficial de Japón?', 7, 'FACIL', NULL, FALSE, TRUE, 10, 8, TRUE),
-(16, '¿Cuál es el planeta más cercano al Sol?', 4, 'FACIL', NULL, FALSE, TRUE, 10, 9, TRUE);
+INSERT INTO Pregunta(id,texto, id_categoria,nivel,usuario_creador,fecha_creacion,revisada,valida, vecesEntregadas, vecesCorrectas, activa, fecha_comienzoActivo) VALUES
+(1, '¿Cuál es el nombre del actor que interpreta a Tony Stark/Iron Man en el Universo Cinematográfico de Marvel?', 1, 'MEDIO', NULL,now() ,FALSE, TRUE, 10, 5, TRUE, NOW()),
+(2, '¿Quién es la protagonista de la película "Mujer Maravilla" (2017), basada en el personaje de DC Comics?', 1, 'FACIL', NULL,now() , FALSE, TRUE, 10, 8, TRUE, now()),
+(3, '¿Quién pintó la obra "La Gioconda", también conocida como "La Mona Lisa"?', 3, 'DIFICIL', NULL,now() , FALSE, TRUE, 10, 2, true, NOW()),
+(4, '¿Cuál de las siguientes partículas subatómicas tiene carga positiva?', 4, 'DIFICIL', NULL,now() , FALSE, TRUE, 10, 3, TRUE, NOW()),
+(5, '¿En qué año se fundó la empresa Apple?', 5, 'DIFICIL', NULL,now() , FALSE, TRUE, 10, 2, TRUE, NOW()),
+(6, '¿Cuál es el instrumento musical principal en una orquesta sinfónica?', 10, 'DIFICIL', NULL, now() ,FALSE, TRUE, 10, 1, TRUE, NOW()),
+(7, '¿Cuál es la capital de Uruguay?', 7, 'FACIL', NULL,now() , FALSE, TRUE, 10, 8, TRUE, NOW()),
+
+(8, '¿Cuántos lados tiene un triangulo?', 4, 'FACIL', 3,'2024-06-17 15:30:00', FALSE, TRUE, 10, 8, TRUE, '2024-06-17 15:30:00'),
+(9, '¿Quién escribió "Cien años de soledad"?', 8, 'FACIL', 3,'2024-06-17 15:30:00', FALSE, TRUE, 10, 7, TRUE, '2024-06-17 15:30:00'),
+(10, '¿Cuál es el país más grande del mundo en términos de superficie?', 7, 'FACIL', 3,'2024-06-17 15:30:00', FALSE, TRUE, 10, 9, TRUE, '2024-06-17 15:30:00'),
+(11, '¿Qué elemento químico tiene el símbolo "O"?', 4, 'FACIL', 3,'2024-06-17 15:30:00', FALSE, TRUE, 10, 8, TRUE, '2024-06-17 15:30:00'),
+(12, '¿En qué año terminó la Segunda Guerra Mundial?', 6, 'MEDIO', 3,'2024-06-17 15:30:00', FALSE, TRUE, 10, 6, TRUE, '2024-06-17 15:30:00'),
+(13, '¿Cuál es el idioma más hablado en el mundo?', 7, 'FACIL', 3,'2024-06-17 15:30:00', FALSE, TRUE, 10, 8, TRUE, '2024-06-17 15:30:00'),
+(14, '¿Quién es el autor de la teoría de la relatividad?', 4, 'FACIL', 3,'2024-06-17 15:30:00', FALSE, TRUE, 10, 8, TRUE, '2024-06-17 15:30:00'),
+(15, '¿Cuál es la moneda oficial de Japón?', 7, 'FACIL', 3,'2024-06-17 15:30:00', FALSE, TRUE, 10, 8, TRUE, '2024-06-17 15:30:00'),
+(16, '¿Cuál es el planeta más cercano al Sol?', 4, 'FACIL', 3,'2024-06-18 15:30:00', FALSE, TRUE, 10, 9, TRUE, '2024-06-18 15:30:00'),
+(17, '¿Quién fue el primer presidente de los Estados Unidos?', 7, 'FACIL', 3,'2024-06-18 15:30:00', FALSE, TRUE, 10, 8, TRUE, '2024-06-18 15:30:00'),
+(18, '¿Cuál es el río más largo del mundo?', 7, 'FACIL', 3,'2024-06-18 15:30:00', FALSE, TRUE, 10, 8, TRUE, '2024-06-18 15:30:00'),
+(19, '¿En qué año se firmó la Declaración de Independencia de los Estados Unidos?', 6, 'MEDIO', 3,'2024-06-18 15:30:00', FALSE, TRUE, 10, 6, TRUE, '2024-06-18 15:30:00'),
+(20, '¿Quién escribió la obra "Don Quijote de la Mancha"?', 8, 'FACIL', 3,'2024-06-19 15:30:00', FALSE, TRUE, 10, 7, TRUE, '2024-06-19 15:30:00'),
+(21, '¿Cuál es el océano más grande del mundo?', 7, 'FACIL', 3,'2024-06-19 15:30:00', FALSE, TRUE, 10, 9, TRUE, '2024-06-19 15:30:00'),
+(22, '¿Cuál es el símbolo químico del oro?', 4, 'FACIL', 3, '2024-06-19 15:30:00',FALSE, TRUE, 10, 8, TRUE, '2024-06-19 15:30:00'),
+(23, '¿En qué continente está ubicado el desierto del Sahara?', 7, 'FACIL', 3,'2024-06-19 15:30:00', FALSE, TRUE, 10, 8, TRUE, '2024-06-19 15:30:00'),
+(24, '¿Quién pintó "La noche estrellada"?', 3, 'MEDIO', 3,'2024-06-19 15:30:00', FALSE, TRUE, 10, 5, TRUE, '2024-06-19 15:30:00'),
+(25, '¿Cuántos planetas tienen anillos en nuestro sistema solar?', 4, 'MEDIO', 3,'2024-06-19 15:30:00', FALSE, TRUE, 10, 7, TRUE, '2024-06-19 15:30:00'),
+(26, '¿En qué ciudad se encuentra la Torre Eiffel?', 7, 'FACIL', 3,'2024-06-19 15:30:00', FALSE, TRUE, 10, 8, TRUE, '2024-06-19 15:30:00'),
+(27, '¿Quién fue el primer ser humano en viajar al espacio exterior?', 6, 'MEDIO', 3,'2024-06-20 15:30:00', FALSE, TRUE, 10, 6, TRUE, '2024-06-20 15:30:00'),
+(28, '¿Qué famoso inventor desarrolló la bombilla eléctrica?', 4, 'MEDIO', 3,'2024-06-20 15:30:00', FALSE, TRUE, 10, 5, TRUE, '2024-06-20 15:30:00'),
+(29, '¿Cuál es la montaña más alta del mundo?', 7, 'MEDIO', 3,'2024-06-20 15:30:00', FALSE, TRUE, 10, 7, TRUE, '2024-06-20 15:30:00');
+
+
 
 INSERT INTO Respuesta(texto, id_pregunta, es_correcta) VALUES
 ('Robert Downey Jr.', 1, true),
@@ -205,4 +247,52 @@ INSERT INTO Respuesta(texto, id_pregunta, es_correcta) VALUES
 ('Mercurio', 16, true),
 ('Venus', 16, false),
 ('Marte', 16, false),
-('Júpiter', 16, false);
+('Júpiter', 16, false),
+('George Washington', 17, true),
+('Thomas Jefferson', 17, false),
+('Abraham Lincoln', 17, false),
+('John Adams', 17, false),
+('Amazonas', 18, false),
+('Nilo', 18, true),
+('Yangtsé', 18, false),
+('Misisipi', 18, false),
+('1776', 19, true),
+('1789', 19, false),
+('1804', 19, false),
+('1812', 19, false),
+('Miguel de Cervantes', 20, true),
+('Gabriel García Márquez', 20, false),
+('Jorge Luis Borges', 20, false),
+('William Shakespeare', 20, false),
+('Pacífico', 21, true),
+('Atlántico', 21, false),
+('Índico', 21, false),
+('Ártico', 21, false),
+('Au', 22, false),
+('Ag', 22, false),
+('Fe', 22, false),
+('Au', 22, true),
+('África', 23, true),
+('América', 23, false),
+('Asia', 23, false),
+('Europa', 23, false),
+('Vincent van Gogh', 24, true),
+('Pablo Picasso', 24, false),
+('Salvador Dalí', 24, false),
+('Leonardo da Vinci', 24, false),
+('4', 25, true),
+('2', 25, false),
+('6', 25, false),
+('8', 25, false),
+('París', 26, true),
+('Londres', 26, false),
+('Roma', 26, false),
+('Berlín', 26, false),
+('Yuri Gagarin', 27, true),
+('Neil Armstrong', 27, false),
+('Buzz Aldrin', 27, false),
+('Alan Shepard', 27, false),
+('Thomas Edison', 28, true),
+('Nikola Tesla', 28, false),
+('Alexander Graham Bell', 28, false),
+('Guglielmo Marconi', 28, false);

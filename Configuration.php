@@ -10,6 +10,7 @@ include_once ("controller/PreguntaController.php");
 include_once ("controller/RespuestaController.php");
 include_once ("controller/RankingController.php");
 include_once ("controller/EditorController.php");
+include_once ("controller/AdministradorController.php");
 
 include_once ("model/BaseModel.php");
 include_once ("model/RegistroModel.php");
@@ -20,14 +21,21 @@ include_once ("model/PreguntaModel.php");
 include_once ("model/RespuestaModel.php");
 include_once ("model/RankingModel.php");
 include_once ("model/EditorModel.php");
+include_once ("model/AdministradorModel.php");
 
 include_once ("helper/Database.php");
 include_once ("helper/Router.php");
-
 include_once ("helper/Presenter.php");
 include_once ("helper/MustachePresenter.php");
+include_once ("helper/GraficoCreator.php");
+include_once ("helper/PdfCreator.php");
 
 include_once('vendor/mustache/src/Mustache/Autoloader.php');
+require_once('third-party/dompdf-example/dompdf/autoload.inc.php');
+require_once('third-party/jpgraph-example/jpgraph/src/jpgraph.php');
+require_once('third-party/jpgraph-example/jpgraph/src/jpgraph_bar.php');
+require_once('third-party/jpgraph-example/jpgraph/src/jpgraph_line.php');
+include_once("third-party/phpqrcode-2010100721_1.1.4/phpqrcode/qrlib.php");
 
 class Configuration
 {
@@ -36,6 +44,10 @@ class Configuration
     public static function getBaseController()
     {
         return new BaseController(self::getBaseModel(), self::getPresenter());
+    }
+    public static function getAdministradorController()
+    {
+        return new AdministradorController(self::getAdministradorModel(), self::getPresenter(),self::getPdfCreator(),self::getMustache());
     }
 
     public static function getEditorController()
@@ -85,6 +97,15 @@ class Configuration
 
 
     // MODELS
+
+    private static function getBaseModel()
+    {
+        return new BaseModel(self::getDatabase());
+    }
+    private static function getAdministradorModel()
+    {
+        return new AdministradorModel(self::getDatabase(),self::getGraficoCreator());
+    }
     private static function getEditorModel()
     {
         return new EditorModel(self::getDatabase());
@@ -94,17 +115,10 @@ class Configuration
     {
         return new LoginModel(self::getDatabase());
     }
-
-    private static function getBaseModel()
-    {
-        return new BaseModel(self::getDatabase());
-    }
-
     private static function getRankingModel()
     {
         return new RankingModel(self::getDatabase());
     }
-
     private static function getPartidaModel()
     {
         return new PartidaModel(self::getDatabase());
@@ -132,7 +146,7 @@ class Configuration
     public static function getDatabase()
     {
         $config = self::getConfig();
-        return new Database($config["servername"], $config["username"], $config["password"], $config["dbname"]);
+        return new Database($config["servername"] . ":" . $config['port'], $config["username"], $config["password"], $config["dbname"]);
     }
 
     private static function getConfig()
@@ -151,5 +165,19 @@ class Configuration
     {
         return new MustachePresenter("view/template");
     }
+    private static function getMustache()
+    {
+        return new MustachePresenter();
+    }
+
+    public static function getPdfCreator()
+    {
+        return new PdfCreator();
+    }
+    public static function getGraficoCreator()
+    {
+        return new GraficoCreator();
+    }
+
 
 }

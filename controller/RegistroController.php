@@ -13,8 +13,8 @@ class RegistroController
 
     public function get()
     {
-        $paises = $this->model->obtenerPaises();
-        $this->presenter->render("view/registro.mustache", ["paises" => $paises]);
+        //$paises = $this->model->obtenerPaises();
+        $this->presenter->render("view/registro.mustache");
     }
 
     public function procesarRegistro()
@@ -31,11 +31,13 @@ class RegistroController
             $email = $_POST['email'];
             $password = $_POST['password'];
             $username = $_POST['username'];
+            $latitud = $_POST['latitud'];
+            $longitud = $_POST['longitud'];
             $foto =  isset($_FILES['foto']) ? $_FILES['foto'] : null;
 
             $direccionDestino = $this->model->verificarYSubirLaFotoDePerfil($foto);
 
-            $token = $this->model->registrarUsuarioAlaBD($nombre, $anio_nacimiento, $sexo,$pais,$ciudad,$email,$password,$username,$direccionDestino);
+            $token = $this->model->registrarUsuarioAlaBD($nombre, $anio_nacimiento, $sexo, $ciudad, $pais, $email,$password,$username,$direccionDestino, $latitud, $longitud);
 
             $mensaje = $this->model->enviarCorreoValidacion($email, $token);
 
@@ -58,6 +60,6 @@ class RegistroController
             $mensaje  = "No se recibió el token.";
         }
 
-        $this->presenter->render("view/mensajeValidacion.mustache", ["mensaje" => $mensaje]);
+        $this->presenter->render("view/vistasPostAccion/mensajeValidacion.mustache", ["mensaje" => $mensaje]);
     }
 }
