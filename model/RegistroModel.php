@@ -1,5 +1,8 @@
 <?php
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
 class RegistroModel
 {
     private $database;
@@ -11,27 +14,26 @@ class RegistroModel
 
     public function registrarUsuarioAlaBD($nombre, $anio_nacimiento, $sexo, $ciudad, $pais, $email, $password, $username, $foto, $latitud, $longitud)
     {
-        $token = bin2hex(random_bytes(8)); // Generar un token aleatorio
+        $token = bin2hex(random_bytes(8));
         $habilitado = 0;
         $puntaje_acumulado = 0;
         $partidas_realizadas = 0;
         $nivel = 0.0;
         $qr = NULL;
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
         $consulta = "
         INSERT INTO Usuarios (nombre_completo, anio_nacimiento, sexo, ciudad, pais, email, password, username, token, foto, habilitado, puntaje_acumulado, partidas_realizadas, nivel, latitud, longitud, qr)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ";
+        ";
 
         $stmt = $this->database->prepare($consulta);
-        //$stmt->bind_param("sissssssssiididds", $nombre, $anio_nacimiento, $sexo, $ciudad, $pais, $email, $password, $username, $token, $foto, $habilitado, $puntaje_acumulado, $partidas_realizadas, $nivel, $latitud, $longitud, $qr);
-        $stmt->bind_param("sissssssssiididds", $nombre, $anio_nacimiento, $sexo, $ciudad, $pais, $email, $password, $username, $token, $foto, $habilitado, $puntaje_acumulado, $partidas_realizadas, $nivel, $latitud, $longitud, $qr);
-        if ($stmt->execute()) {
-            // Obtener el ID del usuario recién insertado
-            $idUsuario = $stmt->insert_id;
+        $stmt->bind_param("sissssssssiididds", $nombre, $anio_nacimiento, $sexo, $ciudad, $pais, $email, $passwordHash, $username, $token, $foto, $habilitado, $puntaje_acumulado, $partidas_realizadas, $nivel, $latitud, $longitud, $qr);
 
-            // Asignar el rol de 'Jugador' al nuevo usuario
-            $rolJugador = 3; // Teniendo en cuenta que 3 es el ID para el rol 'Jugador'
+        if ($stmt->execute()) {
+
+            $idUsuario = $stmt->insert_id;
+            $rolJugador = 3;
             $consultaRol = "INSERT INTO Usuario_Rol (id_usuario, id_rol) VALUES (?, ?)";
             $stmtRol = $this->database->prepare($consultaRol);
             $stmtRol->bind_param("ii", $idUsuario, $rolJugador);
@@ -39,6 +41,7 @@ class RegistroModel
             if (!$stmtRol->execute()) {
                 echo "Error al asignar el rol al usuario: " . $stmtRol->error;
             }
+
             return $token;
         } else {
             echo "Error al registrar al usuario: " . $stmt->error;
@@ -48,14 +51,17 @@ class RegistroModel
 
     public function verificarYSubirLaFotoDePerfil($foto)
     {
-        if ($foto['error'] !== UPLOAD_ERR_OK)
-            echo "Error al cargar la imagen de perfil.";
+        if ($foto['error'] !== UPLOAD_ERR_OK) {
+
+            return null;
+        }
 
         $direccionOrigen = $foto['tmp_name'];
         $direccionDestino = 'public/imagenes/' . basename($foto['name']);
 
-        if (!$this->subirFotoAUnaDireccion($direccionOrigen, $direccionDestino))
-            echo "Error al subir la imagen de perfil.";
+        if (!$this->subirFotoAUnaDireccion($direccionOrigen, $direccionDestino)) {
+            return null;
+        }
 
         return $direccionDestino;
     }
@@ -65,29 +71,46 @@ class RegistroModel
         return move_uploaded_file($direccionOrigen, $direccionDestino);
     }
 
-    public function enviarCorreoValidacion($email, $token)
+/*    public function enviarEmail($token, $email)
     {
-        $mensaje = 'Por favor, haz clic en el siguiente enlace para validar tu cuenta:' . $email . '<br>';
-        $mensaje .= '<a href="/registro/validar?token=' . $token . '">Validar Cuenta</a>';
-        return $mensaje;
+        $asunto = 'Confirmá tu email para empezar a jugar';
+        $cuerpo = "Por favor, haz clic en el siguiente enlace para validar tu correo electrónico: ";
+        $cuerpo .= "http://localhost/registro/validar?token=$token";
+
+        $mail = new PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->Host = 'smtp.gmail.com';
+            $mail->SMTPAuth = true;
+            $mail->Username = 'preguntadoswebii@gmail.com';
+            $mail->Password = 'Preguntados2024!';
+            $mail->SMTPSecure = 'ssl';
+            $mail->Port = 465;
+            $mail->CharSet = 'UTF-8';
+            $mail->setFrom('preguntadoswebii@gmail.com');
+            $mail->addAddress($email);
+            $mail->Subject = $asunto;
+            $mail->Body = $cuerpo;
+            $mail->send();
+        } catch (Exception $e) {
+            echo "No se pudo enviar el correo. Error de PHPMailer: {$mail->ErrorInfo}";
+        }
     }
+ */
 
-    public function habilitarCuentaConToken($token)
+    public function validarCorreo($token)
     {
 
-        $sql = "SELECT * FROM Usuarios WHERE token='$token' AND habilitado=0";
-        $result = $this->database->query($sql);
+        $query = "SELECT * FROM Usuarios WHERE token = '$token' AND habilitado = 0";
+        $result = $this->database->executeAndReturn($query);
+            if ($result->num_rows == 1) {
+                $usuario = $result->fetch_assoc();
+                $updateQuery = "UPDATE Usuarios SET habilitado = 1 WHERE token = '$token'";
 
-        if (count($result) == 1) {
-            $updateSql = "UPDATE Usuarios SET habilitado=1 WHERE token='$token'";
-            if ($this->database->executeAndReturn($updateSql))
-                $mensaje = "Cuenta validada correctamente.";
-            else
-                $mensaje = "Error al validar la cuenta.";
-        } else {
-            $mensaje = "Token no válido o cuenta ya validada.";
+            } else {
+                echo "El token de validación no es válido.";
+            }
         }
 
-        return $mensaje;
-    }
-}
+
+   }

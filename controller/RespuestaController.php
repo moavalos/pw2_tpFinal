@@ -29,7 +29,6 @@ class RespuestaController extends BaseController
 
     public function crearRespuestasSugeridas()
     {
-
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $respuestas = $_POST['respuesta'];
             $id_pregunta = $_POST['id_pregunta'];
@@ -40,11 +39,10 @@ class RespuestaController extends BaseController
                 $resultado = $this->model->crearRespuestasSugeridas($texto, $id_pregunta, $es_correcta);
 
             }
-            header("location: /pregunta");
+            header("location: /homeUsuario");
         } else {
             header("location: /homeUsuario");
 
         }
-
     }
 }

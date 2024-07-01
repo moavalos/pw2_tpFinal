@@ -31,11 +31,16 @@ include_once ("helper/GraficoCreator.php");
 include_once ("helper/PdfCreator.php");
 
 include_once('vendor/mustache/src/Mustache/Autoloader.php');
-require_once('third-party/dompdf-example/dompdf/autoload.inc.php');
+//require_once('third-party/dompdf-example/dompdf/autoload.inc.php');
 require_once('third-party/jpgraph-example/jpgraph/src/jpgraph.php');
 require_once('third-party/jpgraph-example/jpgraph/src/jpgraph_bar.php');
 require_once('third-party/jpgraph-example/jpgraph/src/jpgraph_line.php');
 include_once("third-party/phpqrcode-2010100721_1.1.4/phpqrcode/qrlib.php");
+
+require 'third-party/PHPMailer/src/Exception.php';
+require 'third-party/PHPMailer/src/PHPMailer.php';
+require 'third-party/PHPMailer/src/SMTP.php';
+require 'helper/EmailHelper.php';
 
 class Configuration
 {
@@ -47,7 +52,7 @@ class Configuration
     }
     public static function getAdministradorController()
     {
-        return new AdministradorController(self::getAdministradorModel(), self::getPresenter(),self::getPdfCreator(),self::getMustache());
+        return new AdministradorController(self::getAdministradorModel(), self::getPresenter(),self::getPdfCreator(),self::getMustache(),self::getGraficoCreator());
     }
 
     public static function getEditorController()
@@ -76,7 +81,7 @@ class Configuration
     }
     public static function getRegistroController()
     {
-        return new RegistroController(self::getRegistroModel(),self::getPresenter());
+        return new RegistroController(self::getRegistroModel(),self::getPresenter() , self::getEmailHelper());
     }
 
     public static function getPerfilController()
@@ -104,7 +109,7 @@ class Configuration
     }
     private static function getAdministradorModel()
     {
-        return new AdministradorModel(self::getDatabase(),self::getGraficoCreator());
+        return new AdministradorModel(self::getDatabase());
     }
     private static function getEditorModel()
     {
@@ -146,7 +151,7 @@ class Configuration
     public static function getDatabase()
     {
         $config = self::getConfig();
-        return new Database($config["servername"] . ":" . $config['port'], $config["username"], $config["password"], $config["dbname"]);
+        return new Database($config["servername"] . ":" . $config["port"], $config["username"], $config["password"], $config["dbname"]);
     }
 
     private static function getConfig()
@@ -165,7 +170,7 @@ class Configuration
     {
         return new MustachePresenter("view/template");
     }
-    private static function getMustache()
+    public static function getMustache()
     {
         return new MustachePresenter();
     }
@@ -177,6 +182,10 @@ class Configuration
     public static function getGraficoCreator()
     {
         return new GraficoCreator();
+    }
+    public static function getEmailHelper ()
+    {
+        return new EmailHelper();
     }
 
 

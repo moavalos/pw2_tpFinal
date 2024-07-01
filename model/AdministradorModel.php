@@ -2,21 +2,52 @@
 
 class AdministradorModel extends BaseModel
 {
-    protected $grafica;
-
-    public function __construct($database, $grafica)
+    public function __construct($database)
     {
         parent::__construct($database);
-        $this->grafica = $grafica;
     }
 
-    public function crearGrafico($datos) { $this->grafica->graficar($datos); }
-    public function graficarCantidadDeUsuariosPorSexo($datos) { $this->grafica->usuariosPorSexo($datos); }
-    public function graficarCantidadDeUsuariosPorGrupo($datos) { $this->grafica->usuariosPorGrupo($datos); }
-    public function graficarCantidadDeUsuariosPorPais($datos) { $this->grafica->usuariosPorPais($datos); }
-    public function graficarPorcentajeDeCorrectasPorUsuarios($datos) { $this->grafica->porcentajeUsuarioCorrectas($datos); }
-    public function graf() { $this->grafica->graficoNuevo(); }
-    public function pdf() { $this->pdfCreator->crear(); }
+    public function getPorcentajeRespuestasCorrectasPorUsuario()
+    {
+        $consulta = "SELECT u.username, 
+                    (SUM(CASE WHEN r.es_correcta = 1 THEN 1 ELSE 0 END) / COUNT(r.id)) * 100 AS porcentaje_correctas
+             FROM Usuarios u
+             JOIN Respuesta r ON u.id = r.id
+             GROUP BY u.username";
+
+        $resultConsulta = $this->database->executeAndReturn($consulta);
+
+        $dataPorcentajeCorrectas = [];
+        if ($resultConsulta && $resultConsulta->num_rows > 0) {
+            while ($row = $resultConsulta->fetch_assoc()) {
+                $dataPorcentajeCorrectas[] = [
+                    'username' => $row['username'],
+                    'porcentaje' => $row['porcentaje_correctas']
+                ];
+            }
+        } else {
+            die("No se pudo obtener el porcentaje de respuestas correctas por usuario");
+        }
+
+        return $dataPorcentajeCorrectas;
+    }
+
+    public function getPorcentajeRespuestasCorrectasPorUsuarioPorDia($userId)
+    {
+        $sql = "
+            SELECT 
+                DATE(r.fecha) as dia,
+                (SUM(CASE WHEN r.es_correcta = TRUE THEN 1 ELSE 0 END) / COUNT(*)) * 100 as porcentaje_correctas
+            FROM Respuesta r
+            JOIN Pregunta p ON r.id_pregunta = p.id
+            WHERE p.usuario_creador = :userId
+            GROUP BY DATE(r.fecha)
+        ";
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindParam(':userId', $userId, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     public function getCantidadesDeUsuariosPorPais()
     {
@@ -31,6 +62,7 @@ class AdministradorModel extends BaseModel
         $dataPaisCantidad = $this->llenarConCantidadesALosPaises($resultConsulta);
         return $this->retornarArrayParaQueSeSeVeanLosDatosPorPais($dataPaisCantidad);
     }
+
     public function getCantidadesDeUsuariosPorGrupoDeEdad()
     {
         $consulta = "SELECT 
@@ -48,6 +80,7 @@ class AdministradorModel extends BaseModel
         $dataGrupoCantidad = $this->llenarConCantidadesALosGrupos($resultConsulta, $dataGrupoCantidad);
         return $this->retornarArrayParaQueSeSeVeanLosDatosPorGrupos($dataGrupoCantidad);
     }
+
     public function getCantidadesDeUsuariosPorSexo()
     {
         $consulta = "SELECT  sexo , 
@@ -62,6 +95,7 @@ class AdministradorModel extends BaseModel
         $dataSexoCantidad = $this->llenarConCantidadesALosSexos($resultConsulta, $dataSexoCantidad);
         return $this->retornarArrayParaQueSeSeVeanLosDatosPorSexo($dataSexoCantidad);
     }
+
     public function getCantidadDeJugadores()
     {
         $consulta = "SELECT COUNT(*) AS cantidad_jugadores
@@ -77,6 +111,7 @@ class AdministradorModel extends BaseModel
             die("No se conto la cantidad de jugadores");
         }
     }
+
     public function getCantidadDeJugadoresPdf()
     {//Cuento solo a los jugadores que no sean admin y editor
         $consulta = "SELECT COUNT(*) AS cantidad_jugadores
@@ -92,6 +127,7 @@ class AdministradorModel extends BaseModel
             die("No se conto la cantidad de jugadores");
         }
     }
+
     public function getCantidadDePartidasJugadas()
     {
         $consulta = "SELECT COUNT(*) AS cantidad_partidas FROM Partida WHERE fecha >= CURDATE() AND fecha < CURDATE() + INTERVAL 1 DAY";
@@ -103,6 +139,7 @@ class AdministradorModel extends BaseModel
             die("No se conto la cantidad de partidas");
         }
     }
+
     public function getCantidadDePartidasJugadasPdf()
     {
         $consulta = "SELECT COUNT(*) AS cantidad_partidas FROM Partida";
@@ -114,6 +151,7 @@ class AdministradorModel extends BaseModel
             die("No se conto la cantidad de partidas");
         }
     }
+
     public function getCantidadDePreguntasActivas()
     {
         $consulta = "SELECT COUNT(*) AS cantidad_preguntas FROM Pregunta WHERE activa = 1";
@@ -125,6 +163,7 @@ class AdministradorModel extends BaseModel
             die("No se conto la cantidad de preguntas");
         }
     }
+
     public function getCantidadDePreguntasCreadasActivas()
     {
         $consulta = "SELECT COUNT(*) AS cantidad_preguntas_creadas FROM Pregunta 
@@ -137,6 +176,7 @@ class AdministradorModel extends BaseModel
             die("No se conto la cantidad de preguntas creadas");
         }
     }
+
     public function getCantidadDePreguntasCreadasActivasPdf()
     {
         $consulta = "SELECT COUNT(*) AS cantidad_preguntas_creadas FROM Pregunta 
@@ -149,6 +189,7 @@ class AdministradorModel extends BaseModel
             die("No se conto la cantidad de preguntas creadas");
         }
     }
+
     public function getCantidadDePartidasJugadasPorPeriodo($timeframe)
     {
         switch ($timeframe) {
@@ -177,6 +218,7 @@ class AdministradorModel extends BaseModel
             die("No se pudo obtener la cantidad de partidas jugadas por periodo");
         }
     }
+
     public function obtenerLasCantidadesDePreguntasCredasPorDia($fechas): array
     {
         $fechas_string = "'" . implode("','", $fechas) . "'";
@@ -193,6 +235,7 @@ class AdministradorModel extends BaseModel
         $dataFechaCantidad = $this->llenarConCantidadesALasFechas($resultConsulta, $dataFechaCantidad);
         return $this->retornarArrayParaQueSeSeVeanLosDatosPorDia($dataFechaCantidad);
     }
+
     public function obtenerLasCantidadesDeUsuariosNuevosPorDia($fechas): array
     {
         $fechas_string = "'" . implode("','", $fechas) . "'";
@@ -209,6 +252,7 @@ class AdministradorModel extends BaseModel
         $dataFechaCantidad = $this->llenarConCantidadesALasFechas($resultConsulta, $dataFechaCantidad);
         return $this->retornarArrayParaQueSeSeVeanLosDatosPorDia($dataFechaCantidad);
     }
+
     public function obtenerLasCantidadesDePartidasPorDia($fechas): array
     {
         $fechas_string = "'" . implode("','", $fechas) . "'";
@@ -225,6 +269,7 @@ class AdministradorModel extends BaseModel
         $dataFechaCantidad = $this->llenarConCantidadesALasFechas($resultConsulta, $dataFechaCantidad);
         return $this->retornarArrayParaQueSeSeVeanLosDatosPorDia($dataFechaCantidad);
     }
+
     public function obtenerPreguntasActivasPorPeriodo($timeframe)
     {
         $currentDate = date('Y-m-d'); // Obtener la fecha actual en formato YYYY-MM-DD
@@ -279,6 +324,7 @@ class AdministradorModel extends BaseModel
             die("No se pudo obtener la cantidad de preguntas activas por periodo");
         }
     }
+
     public function obtenerPreguntasCreadasPorPeriodo($timeframe)
     {
         switch ($timeframe) {
@@ -307,7 +353,6 @@ class AdministradorModel extends BaseModel
             die("No se pudo obtener la cantidad de preguntas activas por periodo");
         }
     }
-
 
     public function obtenerUsuariosHombresRegistradosPorPeriodo($timeframe)
     {
@@ -342,9 +387,10 @@ class AdministradorModel extends BaseModel
             die("No se pudo obtener la cantidad de preguntas activas por periodo");
         }
     }
-        public function obtenerUsuariosMujeresRegistradosPorPeriodo($timeframe)
+
+    public function obtenerUsuariosMujeresRegistradosPorPeriodo($timeframe)
     {
-        switch($timeframe) {
+        switch ($timeframe) {
             case 'day':
                 $consulta = "SELECT COUNT(*) AS cantidad_usuarios_mujeres FROM Usuarios WHERE sexo = 'F' AND fecha_registro >= CURDATE() AND fecha_registro < CURDATE() + INTERVAL 1 DAY";
                 break;
@@ -368,7 +414,7 @@ class AdministradorModel extends BaseModel
                 die("No se pudo obtener la cantidad de usuarios mujeres registrados por periodo");
         }
         $result = $this->database->executeAndReturn($consulta);
-        if($result && $result->num_rows > 0) {
+        if ($result && $result->num_rows > 0) {
             $row = $result->fetch_assoc();
             return $row['cantidad_usuarios_mujeres'];
         } else {
@@ -381,7 +427,7 @@ class AdministradorModel extends BaseModel
     {
         $consulta = "SELECT COUNT(*) AS cantidad_usuarios_hombres FROM Usuarios WHERE fecha_registro >= CURDATE() AND sexo = 'M' AND fecha_registro < CURDATE() + INTERVAL 1 DAY";
         $result = $this->database->executeAndReturn($consulta);
-        if($result && $result->num_rows > 0) {
+        if ($result && $result->num_rows > 0) {
             $row = $result->fetch_assoc();
             return $row['cantidad_usuarios_hombres'];
         } else {
@@ -389,17 +435,225 @@ class AdministradorModel extends BaseModel
         }
     }
 
+    public function obtenerCantidadDeUsuariosMasculinosRegistradosYValidadosPdf()
+    {
+        $consulta = "SELECT COUNT(*) AS cantidad_usuarios_hombres FROM Usuarios WHERE sexo = 'M' ";
+        $result = $this->database->executeAndReturn($consulta);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['cantidad_usuarios_hombres'];
+        } else {
+            die("No se pudo obtener la cantidad de usuarios hombres");
+        }
+    }
+
     public function obtenerUsuariosDelDiaMujeresRegistrado()
     {
         $consulta = "SELECT COUNT(*) AS cantidad_usuarios_mujeres FROM Usuarios WHERE fecha_registro >= CURDATE() AND sexo = 'F' AND fecha_registro < CURDATE() + INTERVAL 1 DAY";
         $result = $this->database->executeAndReturn($consulta);
-        if($result && $result->num_rows > 0) {
+        if ($result && $result->num_rows > 0) {
             $row = $result->fetch_assoc();
             return $row['cantidad_usuarios_mujeres'];
         } else {
             die("No se pudo obtener la cantidad de preguntas activas por periodo");
         }
     }
+
+    public function obtenerUsuariosMujeresRegistradosYValidadosPdf()
+    {
+        $consulta = "SELECT COUNT(*) AS cantidad_usuarios_mujeres FROM Usuarios WHERE sexo = 'F' ";
+        $result = $this->database->executeAndReturn($consulta);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['cantidad_usuarios_mujeres'];
+        } else {
+            die("No se pudo obtener la cantidad de preguntas activas por periodo");
+        }
+    }
+
+    public function obtenerResultadosDeUsuariosNoDecididosPorPeriodo($timeframe)
+    {
+        switch ($timeframe) {
+            case 'day':
+                $consulta = "SELECT COUNT(*) AS cantidad_usuarios_nodecididos FROM Usuarios WHERE sexo = 'X' AND fecha_registro >= CURDATE() AND fecha_registro < CURDATE() + INTERVAL 1 DAY";
+                break;
+            case 'week':
+                $consulta = "SELECT COUNT(*) AS cantidad_usuarios_nodecididos FROM Usuarios WHERE sexo = 'X' AND YEARWEEK(fecha_registro) = YEARWEEK(CURDATE())";
+                break;
+            case 'month':
+                $consulta = "SELECT COUNT(*) AS cantidad_usuarios_nodecididos 
+                 FROM Usuarios 
+                 WHERE sexo = 'X' 
+                AND YEAR(fecha_registro) = YEAR(CURDATE())          
+                 AND MONTH(fecha_registro) = MONTH(CURDATE())";
+                break;
+            case 'year':
+                $consulta = "SELECT COUNT(*) AS cantidad_usuarios_nodecididos 
+                 FROM Usuarios 
+                 WHERE sexo = 'X' 
+                 AND YEAR(fecha_registro) = YEAR(CURDATE())";
+                break;
+            default:
+                die("No se pudo obtener la cantidad de usuarios mujeres registrados por periodo");
+        }
+        $result = $this->database->executeAndReturn($consulta);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['cantidad_usuarios_nodecididos'];
+        } else {
+            die("No se pudo obtener la cantidad de preguntas activas por periodo");
+        }
+    }
+
+    public function obtenerUsuariosNoDecididosRegistradosDelDia()
+    {
+        $consulta = "SELECT COUNT(*) AS cantidad_usuarios_nodecididos from Usuarios where fecha_registro >= CURDATE() AND sexo = 'X' AND fecha_registro < CURDATE() + INTERVAL 1 DAY";
+        $result = $this->database->executeAndReturn($consulta);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['cantidad_usuarios_nodecididos'];
+        } else {
+            die("No se pudo obtener la cantidad de preguntas activas por periodo");
+        }
+    }
+
+    public function obtenerUsuariosDeArgentinaPorPeriodo($timeframe)
+    {
+        switch ($timeframe) {
+            case 'day':
+                $consulta = "SELECT COUNT(*) AS cantidad_usuarios_argentinos FROM Usuarios WHERE pais = 'Argentina' AND fecha_registro >= CURDATE() AND fecha_registro < CURDATE() + INTERVAL 1 DAY";
+                break;
+            case 'week':
+                $consulta = "SELECT COUNT(*) AS cantidad_usuarios_argentinos FROM Usuarios WHERE pais = 'Argentina' AND YEARWEEK(fecha_registro) = YEARWEEK(CURDATE())";
+                break;
+            case 'month':
+                $consulta = "SELECT COUNT(*) AS cantidad_usuarios_argentinos 
+                 FROM Usuarios 
+                 WHERE pais = 'Argentina' 
+                AND YEAR(fecha_registro) = YEAR(CURDATE())          
+                 AND MONTH(fecha_registro) = MONTH(CURDATE())";
+                break;
+            case 'year':
+                $consulta = "SELECT COUNT(*) AS cantidad_usuarios_argentinos 
+                 FROM Usuarios 
+                 WHERE pais = 'Argentina' 
+                 AND YEAR(fecha_registro) = YEAR(CURDATE())";
+                break;
+        }
+        $result = $this->database->executeAndReturn($consulta);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['cantidad_usuarios_argentinos'];
+        } else {
+            die("No se pudo obtener la cantidad de preguntas activas por periodo");
+        }
+    }
+
+    public function obtenerUsuariosArgentinosPorDia()
+    {
+        $consulta = "SELECT COUNT(*) AS cantidad_usuarios_argentinos FROM Usuarios WHERE pais = 'Argentina' AND fecha_registro >= CURDATE() AND fecha_registro < CURDATE() + INTERVAL 1 DAY";
+        $result = $this->database->executeAndReturn($consulta);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['cantidad_usuarios_argentinos'];
+        } else {
+            die("No se pudo obtener la cantidad de preguntas activas por periodo");
+        }
+    }
+
+    public function obtenerUsuariosPorRangoDeEdadDia()
+    {
+        $consulta = "SELECT COUNT(*) as cantidad_usaurios_menores From Usuarios WHERE YEAR(NOW()) - anio_nacimiento < 18 AND fecha_registro < CURDATE() + INTERVAL 1 DAY ";
+        $result = $this->database->executeAndReturn($consulta);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['cantidad_usaurios_menores'];
+        } else {
+            die("No se pudo obtener la cantidad de preguntas activas por periodo");
+        }
+    }
+
+    public function obtenerUsuariosPorRangoDeEdadPeriodoMenores($timeframe)
+    {
+        switch ($timeframe) {
+            case 'day':
+                $consulta = "SELECT COUNT(*) as cantidad_usaurios_menores From Usuarios WHERE YEAR(NOW()) - anio_nacimiento < 18 AND fecha_registro >= CURDATE() AND fecha_registro < CURDATE() + INTERVAL 1 DAY ";
+                break;
+            case 'week':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_menores From Usuarios WHERE YEAR(NOW()) - anio_nacimiento < 18 AND YEARWEEK(fecha_registro) = YEARWEEK(CURDATE())";
+                break;
+            case 'month':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_menores From Usuarios WHERE YEAR(NOW()) - anio_nacimiento < 18 AND YEAR(fecha_registro) = YEAR(CURDATE()) AND MONTH(fecha_registro) = MONTH(CURDATE())";
+                break;
+            case 'year':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_menores From Usuarios WHERE YEAR(NOW()) - anio_nacimiento < 18 AND YEAR(fecha_registro) = YEAR(CURDATE())";
+                break;
+
+        }
+        $result = $this->database->executeAndReturn($consulta);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['cantidad_usuarios_menores'];
+        } else {
+            die("No se pudo obtener la cantidad de preguntas activas por periodo");
+        }
+
+    }
+
+    public function obtenerUsuariosPorRangoDeEdadPeriodoMedio($timeframe)
+    {
+        switch ($timeframe) {
+            case 'day':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_medio From Usuarios WHERE YEAR(NOW()) - anio_nacimiento > 18 AND YEAR(NOW()) - anio_nacimiento < 60 AND fecha_registro >= CURDATE() AND fecha_registro < CURDATE() + INTERVAL 1 DAY ";
+                break;
+            case 'week':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_medio From Usuarios WHERE YEAR(NOW()) - anio_nacimiento > 18 AND YEAR(NOW()) - anio_nacimiento < 60 AND YEARWEEK(fecha_registro) = YEARWEEK(CURDATE())";
+                break;
+            case 'month':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_medio From Usuarios WHERE YEAR(NOW()) - anio_nacimiento > 18 AND YEAR(NOW()) - anio_nacimiento < 60 AND YEAR(fecha_registro) = YEAR(CURDATE()) AND MONTH(fecha_registro) = MONTH(CURDATE())";
+                break;
+            case 'year':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_medio From Usuarios WHERE YEAR(NOW()) - anio_nacimiento > 18 AND YEAR(NOW()) - anio_nacimiento < 60 AND YEAR(fecha_registro) = YEAR(CURDATE())";
+                break;
+
+        }
+        $result = $this->database->executeAndReturn($consulta);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['cantidad_usuarios_medio'];
+        } else {
+            die("No se pudo obtener la cantidad de preguntas activas por periodo");
+        }
+
+    }
+
+    public function obtenerUsuariosPorRangoDeEdadPeriodoMayores($timeframe)
+    {
+        switch ($timeframe) {
+            case 'day':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_mayores From Usuarios WHERE YEAR(NOW()) - anio_nacimiento > 60 AND fecha_registro >= CURDATE() AND fecha_registro < CURDATE() + INTERVAL 1 DAY ";
+                break;
+            case 'week':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_mayores From Usuarios WHERE YEAR(NOW()) - anio_nacimiento > 60 AND YEARWEEK(fecha_registro) = YEARWEEK(CURDATE())";
+                break;
+            case 'month':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_mayores From Usuarios WHERE YEAR(NOW()) - anio_nacimiento > 60 AND YEAR(fecha_registro) = YEAR(CURDATE()) AND MONTH(fecha_registro) = MONTH(CURDATE())";
+                break;
+            case 'year':
+                $consulta = "SELECT COUNT(*) as cantidad_usuarios_mayores From Usuarios WHERE YEAR(NOW()) - anio_nacimiento > 60 AND YEAR(fecha_registro) = YEAR(CURDATE())";
+                break;
+
+        }
+        $result = $this->database->executeAndReturn($consulta);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return $row['cantidad_usuarios_mayores'];
+        } else {
+            die("No se pudo obtener la cantidad de preguntas activas por periodo");
+        }
+
+    }
+
 
     private function inicializarFechaCantidadDeLosUltimosSieteDias($fechas): array
     {//[21-06]= 0
@@ -410,6 +664,7 @@ class AdministradorModel extends BaseModel
         }
         return $dataFechaCantidad;
     }
+
     private function inicializarSexoCantidad(): array
     {
         $dataSexoCantidad['M'] = 0;
@@ -417,6 +672,7 @@ class AdministradorModel extends BaseModel
         $dataSexoCantidad['X'] = 0;
         return $dataSexoCantidad;
     }
+
     private function llenarConCantidadesALasFechas($result, $dataFechaCantidad): array
     {
         if ($result && $result->num_rows > 0) {
@@ -428,6 +684,7 @@ class AdministradorModel extends BaseModel
         }
         return $dataFechaCantidad;
     }
+
     private function retornarArrayParaQueSeSeVeanLosDatosPorDia($data): array
     {
         $final_array = [];
@@ -440,7 +697,7 @@ class AdministradorModel extends BaseModel
         return $final_array;
     }
 
-    private function llenarConCantidadesALosSexos($result, $dataSexoCantidad):array
+    private function llenarConCantidadesALosSexos($result, $dataSexoCantidad): array
     {
         if ($result && $result->num_rows > 0) {
             while ($row = $result->fetch_assoc()) {
@@ -453,7 +710,6 @@ class AdministradorModel extends BaseModel
     }
 
 
-
     private function inicializarGrupoCantidad(): array
     {
         $dataGrupoCantidad['menores'] = 0;
@@ -462,7 +718,7 @@ class AdministradorModel extends BaseModel
         return $dataGrupoCantidad;
     }
 
-    private function llenarConCantidadesALosGrupos($result,  $dataGrupoCantidad):array
+    private function llenarConCantidadesALosGrupos($result, $dataGrupoCantidad): array
     {
         if ($result && $result->num_rows > 0) {
             while ($row = $result->fetch_assoc()) {
@@ -473,7 +729,8 @@ class AdministradorModel extends BaseModel
         }
         return $dataGrupoCantidad;
     }
-    private function retornarArrayParaQueSeSeVeanLosDatosPorSexo($dataSexoCantidad):array
+
+    private function retornarArrayParaQueSeSeVeanLosDatosPorSexo($dataSexoCantidad): array
     {
         $final_array = [];
         foreach ($dataSexoCantidad as $sexoIndex => $itemCantidad) {
@@ -484,7 +741,8 @@ class AdministradorModel extends BaseModel
         }
         return $final_array;
     }
-    private function retornarArrayParaQueSeSeVeanLosDatosPorGrupos($dataGrupoCantidad):array
+
+    private function retornarArrayParaQueSeSeVeanLosDatosPorGrupos($dataGrupoCantidad): array
     {
         $final_array = [];
         foreach ($dataGrupoCantidad as $grupoIndex => $itemCantidad) {
@@ -496,7 +754,7 @@ class AdministradorModel extends BaseModel
         return $final_array;
     }
 
-    private function llenarConCantidadesALosPaises($result):array
+    private function llenarConCantidadesALosPaises($result): array
     {
         $dataPaisCantidad = [];
         if ($result && $result->num_rows > 0) {
@@ -520,6 +778,4 @@ class AdministradorModel extends BaseModel
         }
         return $final_array;
     }
-
-
 }

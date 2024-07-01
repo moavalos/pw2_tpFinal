@@ -22,10 +22,10 @@ class PerfilController extends BaseController
     public function mostrarPerfil()
     {
         $this->checkSession();
+        $rol = $this->verificarDeQueRolEsElUsuario($_SESSION["username"]['id']);
 
-        if (!isset($_GET['username'])) {
+        if (!isset($_GET['username']))
             die('Usuario no especificado.');
-        }
 
         $username = $_GET['username'];
         $usuario = $this->model->obtenerUsuarioPorUsername($username);
@@ -50,7 +50,7 @@ class PerfilController extends BaseController
             $usuario['qr'] = $qrPath;
         }
 
-        $this->presenter->render("view/perfiles.mustache", ['usuario' => $usuario]);
+        $this->presenter->render("view/perfiles.mustache", ['usuario' => $usuario, 'rol' => $rol['rol']]);
     }
 }
 
