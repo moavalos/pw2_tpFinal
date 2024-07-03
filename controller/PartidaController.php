@@ -14,11 +14,7 @@ class PartidaController extends BaseController
         $this->model->arrancarPartida($id_usuario);
         $pregunta = $this->traerUnaPreguntaYActualizarDatos($id_usuario);
         $this->mostrarPreguntaYRespuestasPosibles($pregunta);
-
-
     }
-
-
 
     public function procesarRespuesta()
     {
@@ -26,16 +22,12 @@ class PartidaController extends BaseController
         $this->manejoDeElProcesoDeRespuesta();
     }
 
-
     public function siguientePregunta()
     {
         $user_id = $this->checkSessionYTraerIdUsuario();
         $pregunta = $this->traerUnaPreguntaYActualizarDatos($user_id);
         $this->mostrarPreguntaYRespuestasPosibles($pregunta);
-
     }
-
-
 
     public function reportarPregunta()
     {
@@ -55,7 +47,6 @@ class PartidaController extends BaseController
             header("Location:/partida/siguientePregunta");
         elseif ($perdiste == 1)
             header("Location:/homeUsuario");
-
     }
 
     public function procesarReporte()
@@ -79,22 +70,32 @@ class PartidaController extends BaseController
         }
     }
 
-  /*  public function usarTrampa($idPregunta)
+  /*  public function usarTrampa()
     {
 
-        $idUsuario = $this->checkSessionYTraerIdUsuario();
-        $trampas_disponibles = $this->model->obtenerCantidadDeTrampas($idUsuario);
-
-        if($trampas_disponibles > 0) {
-
-            $respuestasIncorrectas = $this->model->traerRespuestasIncorrectas($idUsuario);
-            echo json_encode(['success' => true,  'respuestasIncorrectas' => $respuestasIncorrectas]);
-        } else {
-            echo json_encode(['success' => false]);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Método no permitido']);
+            return;
         }
 
+        $idUsuario = $this->checkSessionYTraerIdUsuario();
+            echo $idUsuario;
+        $trampasDisponibles = $this->model->obtenerCantidadDeTrampas($idUsuario);
+        var_dump($trampasDisponibles);
+        $result = $_SESSION['idPregunta'];
+        var_dump($result);
 
-    }*/
+        if ($trampasDisponibles > 0 && isset($_SESSION['idPregunta'])) {
+            $idPregunta = $_SESSION['idPregunta'];
+            $respuestasIncorrectas = $this->model->traerRespuestasIncorrectas($idPregunta);
+
+            echo json_encode(['success' => true, 'respuestasIncorrectas' => $respuestasIncorrectas]);
+            return;
+        }
+        echo json_encode(['success' => false, 'message' => 'No tienes trampas disponibles o no hay una pregunta activa.']);
+    }
+ */
+
 
     private function determinarLaRazonFinalDelReporte($razonReporteRadio, $otraRazonReporteText)
     {
@@ -131,7 +132,6 @@ class PartidaController extends BaseController
             "pregunta" => $pregunta['texto'],
             "id_pregunta" => $pregunta['id']
 
-
         ];
         return $datos;
     }
@@ -145,6 +145,7 @@ class PartidaController extends BaseController
         $puntaje = $this->model->obtenerCantidadDePuntos($id_usuario);
         $this->presenter->render("view/vistasPostAccion/mostrarPuntajeDespuesPerder.mustache", ['puntaje' => $puntaje, 'pregunta' => $pregunta, 'categoria' => $categoria, "rol" => $rol['rol']]);
     }
+
     private function traerUnaPreguntaYActualizarDatos($id_usuario)
     {
         $pregunta = $this->model->traerPreguntaAleatoriaSinRepeticionDePregunta($id_usuario);
@@ -158,12 +159,15 @@ class PartidaController extends BaseController
     {
         $id_usuario = $this->checkSessionYTraerIdUsuario();
         $rol = $this->verificarDeQueRolEsElUsuario($id_usuario);
-
+        $idPregunta = $pregunta[0]['id'];
+        $_SESSION['idPregunta'] = $idPregunta;
         $categoria = $this->model->getCategoriaPorIdDePregunta($pregunta[0]['id']);
         $respuestas = $this->model->traerRespuestasDesordenadas($pregunta[0]['id']);
         $trampitas = $this->model->obtenerCantidadDeTrampas($id_usuario);
-        var_dump($trampitas);
+        //var_dump($trampitas);
         $this->presenter->render("view/partida.mustache", ['pregunta' => $pregunta, 'categoria' => $categoria, 'respuestas' => $respuestas, "rol" => $rol['rol'], "trampitas" => $trampitas]);
+
+        unset($_SESSION['idPregunta']);
     }
 
 
@@ -177,19 +181,34 @@ class PartidaController extends BaseController
         $partida = $this->model->obtenerUltimaPartida($id_usuario);
         $this->model->sumarPuntos($id_usuario, $partida);
     }
+
     private function manejoDeElProcesoDeRespuesta()
     {
+
         $user_id = $this->checkSessionYTraerIdUsuario();
         $rol = $this->verificarDeQueRolEsElUsuario($user_id);
 
         $categoria = $this->model->getCategoriaPorIdDePregunta($_POST['pregunta']);
+        $idPregunta = $_POST['pregunta'];
+        $duracion = 10;
 
-        if (isset($_POST['time_expired']) && $_POST['time_expired'] == "1") {
-            $this->handleTimeExpired(); // checkeo si se acabo el timepo
-        } elseif (isset($_POST['respuesta']) && isset($_POST['pregunta'])) {
+        // Iniciar el temporizador si no está iniciado
+        if (!isset($_SESSION['question_start_time'][$idPregunta])) {
+            $_SESSION['question_start_time'][$idPregunta] = time();
+        }
 
+        // Verificar si el tiempo ha expirado
+        if (isset($_SESSION['question_start_time'][$idPregunta])) {
+            $tiempoDeInicio = $_SESSION['question_start_time'][$idPregunta];
+            $tiempoTranscurrido = time() - $tiempoDeInicio;
+            $tiempoRestante = $duracion - $tiempoTranscurrido;
+
+            if ($tiempoRestante <= 0 && (isset($_POST['time_expired']) && $_POST['time_expired'] == "1")) { //SI EL TIEMPO DEL BACK Y EL DEL FRONT SON 0 MANEJA EL ERROR
+                $this->handleTimeExpired(); // Manejar caso cuando el tiempo se acaba
+                return;
+            }
+        }elseif (isset($_POST['respuesta']) && isset($_POST['pregunta'])) {
             $respuesta = $_POST['respuesta'];
-            $idPregunta = $_POST['pregunta'];
             $pregunta = $this->model->getPreguntaPorIdDePregunta($idPregunta);
 
             if ($this->model->esRespuestaCorrecta($respuesta, $idPregunta)) {
@@ -205,3 +224,20 @@ class PartidaController extends BaseController
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
