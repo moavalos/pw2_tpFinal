@@ -187,6 +187,4 @@ class Configuration
     {
         return new EmailHelper();
     }
-
-
 }

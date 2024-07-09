@@ -223,42 +223,57 @@ class PartidaModel extends BaseModel
 
     public function obtenerCantidadDeTrampas($idUsuario)
     {
-        $query = "select trampita from Usuarios where id = ?";
+        $query = "SELECT trampita FROM Usuarios WHERE id = ?";
         $stmt = $this->database->prepare($query);
         $stmt->bind_param('i', $idUsuario);
         $stmt->execute();
-
         $result = $stmt->get_result();
 
         if ($result->num_rows > 0) {
             $result = $result->fetch_assoc();
-            if ($result['trampita'] > 0) {
-                return $result['trampita'];
-            }else{
-                return 0; }
-        } else
+            return $result['trampita'];
+        } else {
             return 0;
+        }
     }
 
     public function restarUnaTrampaSiEsUsada($idUsuario)
     {
-        $query = "UPDATE Usuarios
-                 set trampita = trampita - 1
-                  where id = $idUsuario ";
-        $result = $this->database->executeAndReturn($query);
-        return $result;
+        $query = "UPDATE Usuarios SET trampita = trampita - 1 WHERE id = ?";
+        $stmt = $this->database->prepare($query);
+        $stmt->bind_param('i', $idUsuario);
+        $stmt->execute();
+        return $stmt->affected_rows > 0;
     }
 
-    public function obtenerDosRespuestasAleatorias($idPregunta)
+    public function agregarUnaTrampa($idUsuario)
     {
-        $query = "SELECT *
+        $query = "UPDATE Usuarios SET trampita = trampita + 1 WHERE id = ?";
+        $stmt = $this->database->prepare($query);
+        $stmt->bind_param('i', $idUsuario);
+        $stmt->execute();
+        return $stmt->affected_rows > 0;
+    }
+
+    public function obtenerDosRespuestasAleatoriasIncorrectas($idPregunta)
+    {
+        $query = "SELECT texto
                   FROM Respuesta 
-                  WHERE id_pregunta = $idPregunta and es_correcta = 0
+                  WHERE id_pregunta = ? and es_correcta = 0
                   ORDER BY RAND()
                   LIMIT 2";
-        $respuestas = $this->database->executeAndReturn($query);
+        $stmt = $this->database->prepare($query);
+        $stmt->bind_param('i', $idPregunta);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-        return $respuestas;
+        if ($result->num_rows > 0) {
+            $respuestas = $result->fetch_all(MYSQLI_ASSOC);
+            $respuestasTextos = array_column($respuestas, 'texto');
+            return $respuestasTextos;
+        } else {
+            return 0;
+        }
     }
 
     private function verificarCantidadPuntos($resultadoDePuntaje): string
@@ -538,7 +553,7 @@ class PartidaModel extends BaseModel
             $primerResultado = $resultado[0];
             $totalPreguntasEntregadas = $primerResultado["preguntas_entregadas"];
         } else {
-           return null;
+            return null;
         }
         return $totalPreguntasEntregadas;
     }

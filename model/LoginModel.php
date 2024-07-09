@@ -19,8 +19,8 @@ class LoginModel extends BaseModel
         if ($resultado->num_rows == 1) {
             $fila = $resultado->fetch_assoc();
 
-            if ($password == $fila["password"])
-                // (password_verify($password, $fila['password']))
+            // if ($password == $fila["password"])
+            if (password_verify($password, $fila['password']))
                 $seInicioSesion = true;
 
         } elseif ($resultado->num_rows == 0) {
@@ -28,6 +28,19 @@ class LoginModel extends BaseModel
         }
 
         return $seInicioSesion;
+    }
+
+    public function actualizarTrampitas($id, $nuevasTrampitas, $nuevoDinero)
+    {
+        $query = "UPDATE Usuarios SET trampita = ?, dinero = ? WHERE id = ?";
+        $stmt = $this->db->prepare($query);
+        $stmt->bind_param('iii', $nuevasTrampitas, $nuevoDinero, $id);
+        $stmt->execute();
+
+        if ($stmt->error)
+            die('Error en la ejecución de la consulta: ' . $stmt->error);
+
+        return $stmt->affected_rows > 0;
     }
 
     public function obtenerDatosUsuario($userId)
@@ -90,21 +103,5 @@ class LoginModel extends BaseModel
         $stmt->bind_param("s", $username);
         $stmt->execute();
         return $stmt->get_result()->fetch_assoc();
-    }
-
-    public function actualizarQRUsuario($username, $qrPath)
-    {
-        $query = "UPDATE Usuarios SET qr = ? WHERE username = ?";
-        $stmt = $this->database->prepare($query);
-
-        if ($stmt === false)
-            throw new Exception("error u.u: " . $this->database->error);
-
-        $stmt->bind_param("ss", $qrPath, $username);
-
-        if (!$stmt->execute())
-            throw new Exception("errorx2: " . $stmt->error);
-
-        return true;
     }
 }

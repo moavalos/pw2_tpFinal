@@ -2,6 +2,7 @@
 
 class PerfilController extends BaseController
 {
+
     public function __construct($model, $presenter)
     {
         session_start();
@@ -44,8 +45,6 @@ class PerfilController extends BaseController
         // genero el QR si no existe o si la URL cambio
         QRcode::png($urlPerfil, $qrPath);
 
-        // actualizo la ruta del QR en la bdd
-        $this->model->actualizarQRUsuario($username, $qrPath);
         $usuario['qr'] = $qrPath;
 
         $this->presenter->render("view/perfiles.mustache", ['usuario' => $usuario, 'rol' => $rol['rol']]);
